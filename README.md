@@ -6,12 +6,7 @@ It does this by timing hash-map lookups, each one a trip to main memory, while y
 
 Each lookup is timed in CPU cycles, and the report focuses on the slow end (99th percentile and the single slowest lookup), because wake-up delays show up as occasional slow accesses rather than a shift in the average. See [Detecting memory sleep](#detecting-memory-sleep) for how to run the test and read the result.
 
-**Workflow diagram:** [`docs/workflow.html`](docs/workflow.html) shows how the code works in three pictures: one run step by step (including the timed region), which parts talk to what, and the memory deep-sleep effect the benchmark detects. It also has a table mapping the C++ to the Python version. GitHub displays `.html` files as source, so open it in a browser from your clone:
-
-```sh
-open docs/workflow.html        # macOS
-xdg-open docs/workflow.html    # Linux
-```
+**Workflow diagram:** [`docs/workflow.png`](docs/workflow.png) shows how the code works in three pictures: one run step by step (including the timed region), which parts talk to what, and the memory deep-sleep effect the benchmark detects. It also has a table mapping the C++ to the Python version. Click the link to open it in GitHub's image viewer.
 
 There are two implementations, and they produce the same output:
 
@@ -220,7 +215,7 @@ src/zprobes.cpp             timer implementation and calibration
 src/main.cpp                the benchmark: arguments, loop, report
 python/lazy_ram.py          Python/Numba version
 python/requirements.txt
-docs/workflow.html          workflow diagrams (open in a browser)
+docs/workflow.png           workflow diagrams
 third_party/sparsehash/     vendored Google sparsehash (header-only)
 ```
 

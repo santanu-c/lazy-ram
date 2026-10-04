@@ -48,7 +48,7 @@ If `python3.12` isn't on PATH, use `uv python install 3.12` and then `make venv 
 ## Conventions
 
 - `third_party/` is vendored, unmodified upstream code. Don't edit it.
-- `docs/workflow.html` holds hand-drawn SVG diagrams of the run flow, components and timed region. Update it when the flow, file layout or timer changes.
+- `docs/workflow.png` is a rendered image of the run flow, components and timed region (made from hand-drawn SVG; the source isn't kept in the repo). When the flow, file layout or timer changes, redraw it, or flag that it's out of date.
 - Probe API names are lower-case and identical in both languages: `zstart`, `zstop`, `zlog`, `zpercentile_ns`, `zreset` (plus `zdump_percentiles`/`zdumplite`).
 - `FINDINGS.lazy-ram.md` is a local, git-ignored analysis of the original program. Don't commit it.
 - `PLAN.lazy-ram.md` is the roadmap for future work. Check it before starting a change, and update its status when an item is done.
