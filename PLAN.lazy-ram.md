@@ -7,9 +7,10 @@ The roadmap and working rules for future code changes to lazy-ram. Read it toget
 ## Current state (2026-10-04)
 
 - C++20 benchmark (`src/main.cpp`, `src/zprobes.cpp`, `include/lazyram/zprobes.h`) built by a portable `Makefile`. It is clean under Apple clang 16 (Intel Mac); GCC 15 is untested.
-- Python 3.12 + Numba version (`python/lazy_ram.py`) with the same arguments, environment variables and report format. It is about 2.3× slower per lookup than C++.
-- Report: Settings → calibration → one p99 line per batch → Summary → Checksum. Documented in `README.md`.
-- No tests and no CI build. `.github/workflows/` only runs the Claude bot and the PR review.
+- Python 3.12 + Numba version (`python/lazy_ram.py`) with the same arguments, environment variables and report format. It is about 2.0× slower per lookup than C++ (median batch p99 ~800 ns vs ~400 ns).
+- Report: Settings → calibration → one p99 line per batch → Summary → Checksum. Documented in `README.md`, with a workflow diagram in `docs/workflow.png`.
+- No tests and no CI build. `.github/workflows/` only runs the Claude bot and the PR review; the Claude GitHub App is installed, so both work.
+- `main` is protected: changes go through a PR, and `claude-review` must pass (no approvals needed, admins can bypass, no force-push or deletion). GitHub Pages is not enabled.
 
 ## Rules for every change
 
@@ -28,13 +29,16 @@ The roadmap and working rules for future code changes to lazy-ram. Read it toget
    ./build/lazy_ram 0 2; echo $?                  # error + usage, exit 1
    ```
 7. **Keep it standalone:** never reference `hpc-benchmarks` or `LazyRAM2`.
+8. **Always use a PR:** branch from an up-to-date `main`, push, and open a PR; `claude-review` must pass before merging.
+9. **Keep the diagram current:** if the run flow, file layout or timer changes, update `docs/workflow.png` in the same PR, or note in the PR that it's out of date.
 
 ## Backlog (in priority order)
 
 ### P1: Confidence
 
 **1. CI build on GCC 15.** Add a `.github/workflows/build.yml` job that runs in the `gcc:15` container: `make`, `make debug`, then a short run of each argument combination. Add a second job that runs `make venv` + a short Python run on `ubuntu-latest` with Python 3.12.
-*Done when:* both jobs pass on a PR, and the README "Requirements" no longer needs the GCC-15-untested caveat.
+Then add the new job names to `main`'s required status checks next to `claude-review`.
+*Done when:* both jobs pass on a PR, they're required checks on `main`, and the README "Requirements" no longer needs the GCC-15-untested caveat.
 
 **2. `make check` smoke test.** Add a script (shell or Python) that runs both implementations with `LAZYRAM_BATCHES=3` and checks:
 - exit codes;
@@ -73,6 +77,9 @@ Both go in both languages, and the README gets an example.
 
 **9. More percentiles in the Summary.** Track a fixed-bucket histogram of all samples (constant memory) to report overall p50/p99/p99.9 across the whole run, not just statistics of the batch p99s.
 
+**12. Keep the diagram source in the repo.** `docs/workflow.png` was rendered from a hand-drawn HTML/SVG page that isn't in the repo, so it can't be edited, only redrawn. Add the source (e.g. `docs/workflow-src/workflow.html`) and a `make diagram` target that renders it to PNG with headless Chrome. Optionally also export the three figures as standalone `.svg` files, which GitHub displays inline in the README.
+*Done when:* changing a label in the source and running `make diagram` updates the PNG.
+
 ### P4: Reach
 
 **10. Apple Silicon / ARM64 support.** Read `cntvct_el0` on ARM64 (and its frequency from `cntfrq_el0`). On macOS, `mach_absolute_time` is an option. Put this behind the existing zprobe API, so `#error` applies only to truly unsupported CPUs.
@@ -85,8 +92,16 @@ Both go in both languages, and the README gets an example.
 - Should item 3's prefill mode become the **default**? It changes what past results mean.
 - Is a version number / `CHANGELOG.md` wanted once CI exists?
 - Should the old `zdump`/`zdumplite` printers be deleted, now that `main` formats the report itself?
+- Enable **GitHub Pages** (from `main` `/docs`) so an HTML version of the diagram can be viewed online? It creates a public site; it was blocked by Claude Code's permission check, and the user chose the PNG instead.
+- Tighten branch protection later: enforce the rules for admins too, or require 1 approval once there's a second maintainer?
 
 ## Completed
+
+- **2026-10-04: Repository setup and docs.**
+  - PR #5 (initial code), #6 (workflow diagram) and #7 (diagram as PNG) merged.
+  - Installed the Claude GitHub App, which fixed the `claude-review` check (it had failed with 401 "not installed").
+  - `docs/workflow.png` linked from the README; it replaced `docs/workflow.html`, which GitHub showed as source.
+  - Branch protection on `main`: PR required, `claude-review` required, no force-push or deletion.
 
 - **2026-10-04: Timer check and purpose documentation.**
   - Confirmed C++ uses `CPUID;RDTSC` (start) and `RDTSCP;CPUID` (stop); EAX is now zeroed before CPUID.

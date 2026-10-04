@@ -23,7 +23,7 @@ LAZYRAM_BATCHES=5 ./build/lazy_ram 0 0
 LAZYRAM_BATCHES=3 LAZYRAM_COUNT=200000 .venv/bin/python python/lazy_ram.py 0 1
 ```
 
-There are no tests, linters or CI builds. `.github/workflows/` holds only the Claude Code bot (`@claude`) and the automatic PR review. To check a change, build with no warnings and compare a short run of both implementations.
+There are no tests, linters or CI builds. `.github/workflows/` holds only the Claude Code bot (`@claude`, `claude.yml`) and the automatic PR review (`claude-code-review.yml`). To check a change, build with no warnings and compare a short run of both implementations.
 
 If `python3.12` isn't on PATH, use `uv python install 3.12` and then `make venv PYTHON="$(uv python find 3.12)"`.
 
@@ -35,7 +35,7 @@ If `python3.12` isn't on PATH, use `uv python install 3.12` and then `make venv 
   - Don't switch the start read to RDTSCP. It doesn't stop later instructions from starting before the read; README "How the timer works" explains why.
   - `calibrate()` must run first in both. It measures the probe's own overhead (`self_adjustment`, which `zstop` subtracts) and works out `nanos_per_cycle` against wall time over a **2 s sleep**.
   - `zlog` collects samples per batch id. `zpercentile_ns(id, p)` reads them back in ns (p = 100 gives the max), and `zreset` drops them. The older `zdump*` printers are kept as library helpers; the benchmark doesn't use them.
-- **Benchmark flow.** For each batch `j`, there are 100 lookups of key `to_string(k + j*100)` in a hash map of `Value { char foo[20]; int v; }`. Before each lookup the code optionally busy-waits (`mysleep`) and optionally runs `blow_cache()` (random-fills, then sums, an int array of `LAZYRAM_COUNT` elements). Only the lookup itself sits between `zstart`/`zstop`. A missing key inserts a default `Value` inside the timed region, as `dense_hash_map::operator[]` does. After each batch: `zdumplite`, then `zreset`.
+- **Benchmark flow.** For each batch `j`, there are 100 lookups of key `to_string(k + j*100)` in a hash map of `Value { char foo[20]; int v; }`. Before each lookup the code optionally busy-waits (`mysleep`) and optionally runs `blow_cache()` (random-fills, then sums, an int array of `LAZYRAM_COUNT` elements). Only the lookup itself sits between `zstart`/`zstop`. A missing key inserts a default `Value` inside the timed region, as `dense_hash_map::operator[]` does. After each batch, `main` reads `zpercentile_ns(id, 99)` and `zpercentile_ns(id, 100)`, prints the batch line, then calls `zreset(id)`.
 - **Output.** `main` owns the report: a Settings block that names where each value came from (arg 1/arg 2/env var), the calibration result, one `Batch / p99` line per batch, then a Summary (median batch p99, worst batch p99, slowest single lookup) and a Checksum. Red is used only when stdout is a TTY and `NO_COLOR` is unset. Arguments are validated (`sleep_usec` >= 0, `scrub_cache` 0/1), and `-h`/`--help` prints usage with examples. **README.md's "Reading the output" section documents this format; update it whenever the format changes.**
 - **C++ hash map.** `google::dense_hash_map<std::string, Value, Fnv1a64>` from the vendored `third_party/sparsehash` (included with `-isystem`). It requires `set_empty_key("")` before use.
 - **Python/Numba constraints.**
@@ -45,10 +45,17 @@ If `python3.12` isn't on PATH, use `uv python install 3.12` and then `make venv 
   - The outer batch loop and printing stay in plain Python.
 - `python/requirements.txt` pins `numba<0.63` on Intel macOS, because later numba/llvmlite releases ship no Intel-mac wheels. Don't drop the pin.
 
+## Git workflow
+
+- **`main` is protected.** Never push to it directly: create a branch, push, and open a PR. A PR needs no approving review, but the `claude-review` check must pass before merging. Force-pushes to `main` and deleting it are blocked. Admins can bypass the rules, so don't rely on that.
+- Both workflows depend on the Claude GitHub App being installed on the repo. If `claude-review` fails with "401 … Claude Code is not installed on this repository", the fix is reinstalling the app at https://github.com/apps/claude, not a code change.
+- After a PR merges: `git checkout main && git pull` before starting the next branch.
+- GitHub Pages is **not** enabled. Turning it on publishes a public site, which is the user's call; don't do it unprompted.
+
 ## Conventions
 
 - `third_party/` is vendored, unmodified upstream code. Don't edit it.
-- `docs/workflow.png` is a rendered image of the run flow, components and timed region (made from hand-drawn SVG; the source isn't kept in the repo). When the flow, file layout or timer changes, redraw it, or flag that it's out of date.
+- `docs/workflow.png` is a rendered image of the run flow, components and timed region, and the README links to it. GitHub shows `.html` as source, which is why it's a PNG. The hand-drawn SVG/HTML source isn't kept in the repo (see PLAN item 12). When the flow, file layout or timer changes, redraw it, or flag that it's out of date. To render an HTML page to PNG: serve it with `python3 -m http.server`, then run headless Chrome with `--force-device-scale-factor=2 --window-size=900,<page height> --screenshot=...`.
 - Probe API names are lower-case and identical in both languages: `zstart`, `zstop`, `zlog`, `zpercentile_ns`, `zreset` (plus `zdump_percentiles`/`zdumplite`).
 - `FINDINGS.lazy-ram.md` is a local, git-ignored analysis of the original program. Don't commit it.
 - `PLAN.lazy-ram.md` is the roadmap for future work. Check it before starting a change, and update its status when an item is done.
