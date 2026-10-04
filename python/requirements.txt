@@ -1,0 +1,4 @@
+numpy>=1.26
+numba>=0.59
+# numba/llvmlite stopped shipping Intel-mac wheels after 0.62 / 0.45.
+numba<0.63; sys_platform == "darwin" and platform_machine == "x86_64"
